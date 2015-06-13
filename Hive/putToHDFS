@@ -1,0 +1,3 @@
+./bin/hadoop fs -put /home/mounica/data/dataToTest/* /dataMA/
+
+./bin/hadoop fs -put /home/mounica/testput/* /dataMA/

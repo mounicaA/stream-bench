@@ -1,0 +1,1 @@
+$HIVE_HOME/bin/hive -hiveconf tableName=id107146362662 -hiveconf tablePath=/user/huser/data/107146362662.csv
