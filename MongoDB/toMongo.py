@@ -1,3 +1,4 @@
+#Script to load files into mongodb
 #Usage: python toMongo.py <path to folder containing the files to insert>
 #Example: python /home/mounica/scripts/toMongo.py /home/mounica/data/dataToTest/3files/
 
@@ -19,10 +20,10 @@ import glob
 import errno
 
 try:
-    conn = pymongo.MongoClient()
-    print "Connected Successfully!"
+	conn = pymongo.MongoClient()
+	print "Connected Successfully!"
 except pymongo.errors.ConnectionFailure, e:
-    print "Could not connect: %s" %e
+	print "Could not connect: %s" %e
 
 db = conn.boschData
 
@@ -32,6 +33,14 @@ collection = db.test
 files = glob.glob(path)
 
 print(files)
+
+def is_number(s):
+	try:
+		float(s)
+		return True
+	except ValueError:
+		return False
+
 
 for oneFile in files:
 	try:
@@ -44,27 +53,34 @@ for oneFile in files:
 			applianceid = applianceid.replace(".csv", "")
 			print("Inserting records for appliance: %s" %applianceid)
 			for row in reader:
-			    RecordDate = row['Date']
-			    RecordTime = row['Time']
-			    DateFields = RecordDate.split('.')
-			    TimeFields = RecordTime.split(':')
-			    year = int(DateFields[2])
-			    month = int(DateFields[1])
-			    day = int(DateFields[0])
-			    hour = int(TimeFields[0])
-			    minute = int(TimeFields[1])
-			    second = int(TimeFields[2])
-			    d = datetime(year, month, day, hour, minute, second)
-			    row['Date'] = d
-			    del row['Time']
-			    
-			    row['Supply_temp__Positive_tolerance'] = row.pop('Supply_temp__Pos._tolerance')
-			    row['Supply_temp__Negative_tolerance'] = row.pop('Supply_temp__Neg._tolerance')
-			    row['ApplianceId'] = applianceid
-			    #print(row)
-			    entry = {k:v for k,v in row.iteritems() if ((v!='NULL') and (v!=''))}
-			    #print(entry)
-			    collection.insert(entry, w=0)
+				RecordDate = row['Date']
+				RecordTime = row['Time']
+				DateFields = RecordDate.split('.')
+				TimeFields = RecordTime.split(':')
+				year = int(DateFields[2])
+				if year < 2014:
+					year = 2014
+				month = int(DateFields[1])
+				day = int(DateFields[0])
+				hour = int(TimeFields[0])
+				minute = int(TimeFields[1])
+				second = int(TimeFields[2])
+				d = datetime(year, month, day, hour, minute)
+				row['TS'] = d
+				del row['Date']
+				del row['Time']
+
+				row['Supply_temp__Positive_tolerance'] = row.pop('Supply_temp__Pos._tolerance')
+				row['Supply_temp__Negative_tolerance'] = row.pop('Supply_temp__Neg._tolerance')
+				row['ApplianceId'] = applianceid
+
+				for k,v in row.items():
+						if k != 'Date' and k != 'ApplianceId' and v != '' and is_number(v):
+							if "status" not in k and v != '':
+								row[k] = float(v)
+
+				entry = {k:v for k,v in row.iteritems() if ((v!='NULL') and (v!=''))}
+				collection.insert(entry, w=0)
 			print("Inserted all records!")
 			#create a compound index on appliance id and datetime
 			collection.create_index([("ApplianceId", ASCENDING), ("Date", ASCENDING)])
