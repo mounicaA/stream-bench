@@ -1,0 +1,14 @@
+582
+----------------------
+/home/bosch_data/data/2014-08-01/665016929766.csv
+108
+Catched!! 44-02-05 22:52:21
+Catched!! 44-02-05 22:52:21
+#Rows : 1590527
+Time taken to convert data : 7797 Miliseconds
+Catched!! 44-02-05 22:52:21
+Catched!! 44-02-05 22:52:21
+1590527
+Time taken to query data : 6458 Miliseconds
+SUCCESS!!
+Total RunTime of the program : 17039 ms
