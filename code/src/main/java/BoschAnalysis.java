@@ -35,31 +35,53 @@ public class BoschAnalysis {
 	private static String Base_Dir = "hdfs://cn1:9000/hdfs/dataset/data/";
 	private static String dataToTest = Base_Dir + "dataToTest/";
 	private static String data = Base_Dir + "2014-08-01/";
+	private static String one_file = dataToTest + "oneFile";
+	private static String three_file = dataToTest + "3files";
+	private static String ten_file = dataToTest + "10files";
+	private static String quarter_file = dataToTest + "25files";
+	private static String fifty_file = dataToTest + "50files";
+	private static String triquarter_file = dataToTest + "75files";
+	private static String cent_file = dataToTest + "100files";
+	private static ArrayList<String> sets = new ArrayList<String>();
 
+	private static long nRows = 0;
   public static void main(String[] args)throws Exception {
-    long startTime = System.currentTimeMillis();
-    SparkConf conf = new SparkConf().setAppName("Analysing Bosch Data");
-    final JavaSparkContext sc = new JavaSparkContext(conf);
-		FileSystem fs = FileSystem.get(new Configuration());
-		FileStatus [] status = fs.listStatus(new Path(data));
-		for(int i = 0 ; i< status.length ; i++){
-			analyseData(sc, status[i].getPath().toString());
-			if(i==1)break;
+		sets.add(ten_file);
+		sets.add(quarter_file);
+		sets.add(fifty_file);
+		sets.add(triquarter_file);
+		sets.add(cent_file);
+		for(String my_path: sets){
+			System.out.println(my_path);
+			long startTime = System.currentTimeMillis();
+			SparkConf conf = new SparkConf().setAppName("Analysing Bosch Data");
+			final JavaSparkContext sc = new JavaSparkContext(conf);
+			FileSystem fs = FileSystem.get(new Configuration());
+			FileStatus [] status = fs.listStatus(new Path(my_path));
+			long loopStartTime = System.currentTimeMillis();
+			for(int i = 0 ; i< status.length ; i++){
+				analyseData(sc, status[i].getPath().toString());
+				long loopEndTime = System.currentTimeMillis();
+				System.out.print("Time taken after loop #" + Integer.toString(i) + " : " + Long.toString(loopEndTime - loopStartTime) + " ms for #rows: "); 
+				System.out.println(nRows);
+			}
+			System.out.println("SUCCESS!!");
+			long endTime = System.currentTimeMillis();
+			System.out.println("Total RunTime of the program : " + Long.toString(endTime - startTime) + " ms");
+			sc.stop();
+			System.out.println("===============================================================");
 		}
-    System.out.println("SUCCESS!!");
-    long endTime = System.currentTimeMillis();
-    System.out.println("Total RunTime of the program : " + Long.toString(endTime - startTime) + " ms");
-		sc.stop();
   }
   
 	public static void analyseData(JavaSparkContext sc, String fileName){
-    System.out.println( "----------------------\n" +fileName);
+//    System.out.println( "----------------------\n" +fileName);
     long startTime = System.currentTimeMillis(); // store the time of the program's start.
     SQLContext sqlContext = new org.apache.spark.sql.SQLContext(sc);
     DataFrame boschDataFrame = ConvertData(sc, sqlContext, fileName);
     long convertTime = System.currentTimeMillis();// Store the time when the data conversion is complete.
-    System.out.println("Time taken to convert data : " + Long.toString(convertTime - startTime) + " Miliseconds"); 
+    System.out.println("Time taken to convert data : " + Long.toString(convertTime - startTime) + "ms"); 
 		System.out.println("#rows in table: " + Long.toString(boschDataFrame.count()));
+		nRows += boschDataFrame.count();
     if(boschDataFrame != null){
 			ArrayList<String>queries = new ArrayList<String>();
 			queries.add("SELECT * FROM bosch ORDER BY timestamp");
@@ -77,15 +99,9 @@ public class BoschAnalysis {
 			long queryStartTime = System.currentTimeMillis();
 			results = sqlContext.sql(query); 
 			long queryEndTime = System.currentTimeMillis();
-			System.out.println("Query : " + query);
-			System.out.println("Time taken to for query : " + Long.toString(queryEndTime - queryStartTime) + " Miliseconds"); 
-			System.out.println("# results: " + Long.toString(results.count()));
-/*			System.out.println("Top 5 results\n");
-			Row [] rows = results.collect();
-			for(int i = 0 ; i < rows.length ; i++){
-				if (i == 5) break;
-				System.out.println(rows[i].mkString(";"));
-			}*/
+			System.out.print(query);
+			System.out.print(":" + Long.toString(queryEndTime - queryStartTime) + "ms"); 
+			System.out.println(" : #results: " + Long.toString(results.count()));
 		}
 	}
   
@@ -93,7 +109,7 @@ public class BoschAnalysis {
   public static DataFrame ConvertData(JavaSparkContext sc, SQLContext sqlContext, String fileName){
     JavaRDD<String> bosch_data = sc.textFile(fileName);// Load a text file and convert each line to a JavaBean.
 		if(bosch_data.count() == 0 ) return null;
-		System.out.println("Convert Data: " + Long.toString(bosch_data.count()));
+//		System.out.println("Convert Data: " + Long.toString(bosch_data.count()));
     String [] fieldNames = bosch_data.first().split("\t");// The schema is encoded in a string
 
   // Generate the schema based on the string of schema
@@ -101,7 +117,7 @@ public class BoschAnalysis {
     fields.add(DataTypes.createStructField("timestamp", DataTypes.TimestampType, true));
     int length = fieldNames.length - 1;
     final Broadcast<Integer> schema_length = sc.broadcast(new Integer(length));
-    System.out.println("Convert Data: " + Integer.toString(length));
+//    System.out.println("Convert Data: " + Integer.toString(length));
     for(int i = 2 ; i < fieldNames.length ; i++){
       fields.add(DataTypes.createStructField(fieldNames[i], DataTypes.FloatType, true));
     }
