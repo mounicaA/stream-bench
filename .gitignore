@@ -1,0 +1,5 @@
+*.txt
+*.log
+*/target/*
+*.jar
+*/metastore_db/*
