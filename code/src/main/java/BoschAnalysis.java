@@ -42,6 +42,9 @@ public class BoschAnalysis {
 	private static String fifty_file = dataToTest + "50files";
 	private static String triquarter_file = dataToTest + "75files";
 	private static String cent_file = dataToTest + "100files";
+
+	private static String checkFile = quarter_file + "/132050695286.csv";
+
 	private static ArrayList<String> sets = new ArrayList<String>();
 
 	private static long nRows = 0;
@@ -61,11 +64,15 @@ public class BoschAnalysis {
 			FileSystem fs = FileSystem.get(new Configuration());
 			FileStatus [] status = fs.listStatus(new Path(my_path));
 			long loopStartTime = System.currentTimeMillis();
+			int check = 0;
 			for(int i = 0 ; i< status.length ; i++){
+				//System.out.println(status[i].getPath().toString());
 				analyseData(sc, status[i].getPath().toString());
+				//analyseData(sc, checkFile);
 				long loopEndTime = System.currentTimeMillis();
 				System.out.print("Time taken after loop #" + Integer.toString(i) + " : " + Long.toString(loopEndTime - loopStartTime) + " ms for #rows: "); 
 				System.out.println(nRows);
+				if(check == 1)break;
 			}
 			System.out.println("SUCCESS!!");
 			long endTime = System.currentTimeMillis();
@@ -85,33 +92,52 @@ public class BoschAnalysis {
     System.out.println("Time taken to convert data : " + Long.toString(convertTime - startTime) + "ms"); 
 		System.out.println("#rows in table: " + Long.toString(boschDataFrame.count()));
 		nRows += boschDataFrame.count();
+		String cName = "Supply_temperature__primary_flow_temperature_";
+		String query4 = "SELECT MIN(" + cName + "), "
+									+ "MAX(" + cName + "), "
+									+ "AVG(" + cName + "), "
+									+ "COUNT(" + cName + ") FROM bosch";
     if(boschDataFrame != null){
 			ArrayList<String>queries = new ArrayList<String>();
-//		queries.add("SELECT * FROM bosch ORDER BY timestamp");
-			queries.add("SELECT MAX(timestamp) FROM bosch");
-			queries.add("SELECT MIN(timestamp) FROM bosch");
-			queries.add("SELECT DATEDIFF(MAX(timestamp), MIN(timestamp)) FROM bosch");
-			queryMaker(sqlContext, boschDataFrame, queries);
+			queries.add("SELECT MIN(timestamp), MAX(timestamp), DATEDIFF(MAX(timestamp), MIN(timestamp)) FROM bosch"); // Query2
+			queries.add("SELECT MIN(timestamp), MAX(timestamp), DATEDIFF(MAX(timestamp), MIN(timestamp)) FROM bosch WHERE Operating_status__Error_Locking=1"); //Query3
+//			queries.add("SELECT Current_fault_display_code FROM bosch WHERE Operating_status__Error_Locking=1");
+			queries.add(query4); // Query4;
+			try{
+				queryMaker(sqlContext, boschDataFrame, queries);
+			}catch(Exception E){
+				System.out.println("Error in queryMaker");
+				E.printStackTrace();
+			}
     }
   }
   
 	//Perform queries and output resource usage.
 	public static void queryMaker(SQLContext sqlContext, DataFrame boschDataFrame, ArrayList<String> queries){
 		boschDataFrame.registerTempTable("bosch"); // Register the DataFrame as a table.
+		int Q = 2;
 		for(String query:queries){
 			DataFrame results = null;
 			long queryStartTime = System.currentTimeMillis();
-			results = sqlContext.sql(query);
-		 	outputResults(results);	
+			try{
+				results = sqlContext.sql(query);
+				outputResults(results);	
+			}catch(Exception E){
+				System.out.println("Query Error");
+			}
 			long queryEndTime = System.currentTimeMillis();
-			System.out.print(query);
-			System.out.print(":" + Long.toString(queryEndTime - queryStartTime) + "ms"); 
-			System.out.println(" : #results: " + Long.toString(results.count()));
+			System.out.print("query-" + Integer.toString(Q));
+			Q++;
+			System.out.print(" :" + Long.toString(queryEndTime - queryStartTime) + "ms");
+		  if(results != null){
+				System.out.println(" : #results: " + Long.toString(results.count()));
+			}
 		}
 	}
 	
 	// Gets the dataframe and extracts the results from the dataframe.
-	public static void outputResults(DataFrame results){
+	public static void outputResults(DataFrame results)throws Exception{
+		if (results == null) return;
 		Row[] rows = results.collect();
 		for(Row row: rows){
 			System.out.println(row.mkString("\t"));
@@ -132,6 +158,10 @@ public class BoschAnalysis {
     final Broadcast<Integer> schema_length = sc.broadcast(new Integer(length));
 //    System.out.println("Convert Data: " + Integer.toString(length));
     for(int i = 2 ; i < fieldNames.length ; i++){
+			/* Note:- Replacing :/(/) with _ for each field name. This allows queries to be 
+			 					performed on fields containing : values.
+			*/
+			fieldNames[i] = fieldNames[i].replaceAll("[:()]","_");
       fields.add(DataTypes.createStructField(fieldNames[i], DataTypes.FloatType, true));
     }
     StructType schema = DataTypes.createStructType(fields);
@@ -169,7 +199,8 @@ public class BoschAnalysis {
 		try{
 			obj_fields[0] = Timestamp.valueOf(timestamp);
 		}catch(Exception E){
-			obj_fields[0] = new Timestamp(0);
+			//obj_fields[0] = new Timestamp(0);
+			return null;
 		}
 		for(int i=2 ; i < fields.length ; i++){
 			if(fields[i]!=null && fields[i].length() > 0){
