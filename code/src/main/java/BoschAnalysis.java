@@ -46,6 +46,8 @@ public class BoschAnalysis {
 
 	private static long nRows = 0;
   public static void main(String[] args)throws Exception {
+		sets.add(one_file);
+		sets.add(three_file);
 		sets.add(ten_file);
 		sets.add(quarter_file);
 		sets.add(fifty_file);
@@ -70,6 +72,7 @@ public class BoschAnalysis {
 			System.out.println("Total RunTime of the program : " + Long.toString(endTime - startTime) + " ms");
 			sc.stop();
 			System.out.println("===============================================================");
+			break;
 		}
   }
   
@@ -84,9 +87,10 @@ public class BoschAnalysis {
 		nRows += boschDataFrame.count();
     if(boschDataFrame != null){
 			ArrayList<String>queries = new ArrayList<String>();
-			queries.add("SELECT * FROM bosch ORDER BY timestamp");
+//		queries.add("SELECT * FROM bosch ORDER BY timestamp");
+			queries.add("SELECT MAX(timestamp) FROM bosch");
 			queries.add("SELECT MIN(timestamp) FROM bosch");
-			queries.add("SELECT MIN(timestamp) FROM bosch");
+			queries.add("SELECT DATEDIFF(MAX(timestamp), MIN(timestamp)) FROM bosch");
 			queryMaker(sqlContext, boschDataFrame, queries);
     }
   }
@@ -97,11 +101,20 @@ public class BoschAnalysis {
 		for(String query:queries){
 			DataFrame results = null;
 			long queryStartTime = System.currentTimeMillis();
-			results = sqlContext.sql(query); 
+			results = sqlContext.sql(query);
+		 	outputResults(results);	
 			long queryEndTime = System.currentTimeMillis();
 			System.out.print(query);
 			System.out.print(":" + Long.toString(queryEndTime - queryStartTime) + "ms"); 
 			System.out.println(" : #results: " + Long.toString(results.count()));
+		}
+	}
+	
+	// Gets the dataframe and extracts the results from the dataframe.
+	public static void outputResults(DataFrame results){
+		Row[] rows = results.collect();
+		for(Row row: rows){
+			System.out.println(row.mkString("\t"));
 		}
 	}
   
