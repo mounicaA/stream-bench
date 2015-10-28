@@ -47,7 +47,7 @@ public class BoschAnalysis {
 
 	private static ArrayList<String> sets = new ArrayList<String>();
 
-	private static long nRows = 0;
+	private static long nRows;
   public static void main(String[] args)throws Exception {
 		sets.add(one_file);
 		sets.add(three_file);
@@ -65,6 +65,7 @@ public class BoschAnalysis {
 			FileStatus [] status = fs.listStatus(new Path(my_path));
 			long loopStartTime = System.currentTimeMillis();
 			int check = 0;
+			nRows = 0;
 			for(int i = 0 ; i< status.length ; i++){
 				//System.out.println(status[i].getPath().toString());
 				analyseData(sc, status[i].getPath().toString());
@@ -79,7 +80,7 @@ public class BoschAnalysis {
 			System.out.println("Total RunTime of the program : " + Long.toString(endTime - startTime) + " ms");
 			sc.stop();
 			System.out.println("===============================================================");
-			break;
+			if(check == 1)break;
 		}
   }
   
