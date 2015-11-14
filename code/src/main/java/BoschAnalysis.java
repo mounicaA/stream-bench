@@ -1,8 +1,8 @@
-//Oct 2, 2015.
 //Author: Jayant Gupta
+// Date: Oct 2, 2015.
 //The code to analyze the data from the Bosch Appliance.
 //
-// Updated Oct 25, 2015
+// Major Update: Oct 25, 2015
 //
 /* Java Libraries */
 import java.util.*;
@@ -32,56 +32,45 @@ import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.util.*;
 	
 public class BoschAnalysis {
-	private static String Base_Dir = "hdfs://cn1:9000/hdfs/dataset/data/";
-	private static String dataToTest = Base_Dir + "dataToTest/";
-	private static String data = Base_Dir + "2014-08-01/";
-	private static String one_file = dataToTest + "oneFile";
-	private static String three_file = dataToTest + "3files";
-	private static String ten_file = dataToTest + "10files";
-	private static String quarter_file = dataToTest + "25files";
-	private static String fifty_file = dataToTest + "50files";
-	private static String triquarter_file = dataToTest + "75files";
-	private static String cent_file = dataToTest + "100files";
-
-	private static String checkFile = quarter_file + "/132050695286.csv";
+	private static String dataToTest = "hdfs://cn1:9000/user/hduser/data/";//Base_Dir;
+	private static String one_file = dataToTest + "oneFile/";
+	private static String three_file = dataToTest + "3files/";
+	private static String ten_file = dataToTest + "10files/";
+	private static String quarter_file = dataToTest + "25files/";
+	private static String fifty_file = dataToTest + "50files/";
+	private static String triquarter_file = dataToTest + "75files/";
+	private static String cent_file = dataToTest + "100files/";
+//	private static String d_cent_file = dataToTest + "200files/";
 
 	private static ArrayList<String> sets = new ArrayList<String>();
 
 	private static long nRows;
   public static void main(String[] args)throws Exception {
-		sets.add(one_file);
-		sets.add(three_file);
-		sets.add(ten_file);
-		sets.add(quarter_file);
-		sets.add(fifty_file);
-		sets.add(triquarter_file);
+//		sets.add(one_file);
+//		sets.add(three_file);
+//		sets.add(ten_file);
+//		sets.add(quarter_file);
+//		sets.add(fifty_file);
+//		sets.add(triquarter_file);
 		sets.add(cent_file);
+		int check = 0; // Runs the code for the first time to see if it works.
+		long startTime = System.currentTimeMillis();
 		for(String my_path: sets){
+			long loopStartTime = System.currentTimeMillis();
 			System.out.println(my_path);
-			long startTime = System.currentTimeMillis();
 			SparkConf conf = new SparkConf().setAppName("Analysing Bosch Data");
 			final JavaSparkContext sc = new JavaSparkContext(conf);
-			FileSystem fs = FileSystem.get(new Configuration());
-			FileStatus [] status = fs.listStatus(new Path(my_path));
-			long loopStartTime = System.currentTimeMillis();
-			int check = 0;
-			nRows = 0;
-			for(int i = 0 ; i< status.length ; i++){
-				//System.out.println(status[i].getPath().toString());
-				analyseData(sc, status[i].getPath().toString());
-				//analyseData(sc, checkFile);
-				long loopEndTime = System.currentTimeMillis();
-				System.out.print("Time taken after loop #" + Integer.toString(i) + " : " + Long.toString(loopEndTime - loopStartTime) + " ms for #rows: "); 
-				System.out.println(nRows);
-				if(check == 1)break;
-			}
-			System.out.println("SUCCESS!!");
-			long endTime = System.currentTimeMillis();
-			System.out.println("Total RunTime of the program : " + Long.toString(endTime - startTime) + " ms");
+			System.out.println(my_path);
+			analyseData(sc, my_path);
 			sc.stop();
+			long loopEndTime = System.currentTimeMillis();
+			System.out.println("Loop RunTime : " + Long.toString(loopEndTime - loopStartTime) + " ms");
 			System.out.println("===============================================================");
 			if(check == 1)break;
 		}
+		long endTime = System.currentTimeMillis();
+		System.out.println("Total RunTime of the program : " + Long.toString(endTime - startTime) + " ms");
+		System.out.println("SUCCESS!!");
   }
   
 	public static void analyseData(JavaSparkContext sc, String fileName){
@@ -141,13 +130,14 @@ public class BoschAnalysis {
 		if (results == null) return;
 		Row[] rows = results.collect();
 		for(Row row: rows){
-			System.out.println(row.mkString("\t"));
+			System.out.println("Query Result: " + row.mkString("\t"));
 		}
 	}
   
  // Convert .csv file to a MySQL schema. 
   public static DataFrame ConvertData(JavaSparkContext sc, SQLContext sqlContext, String fileName){
-    JavaRDD<String> bosch_data = sc.textFile(fileName);// Load a text file and convert each line to a JavaBean.
+		JavaRDD<String> bosch_data = sc.textFile(fileName);// Load a text file and convert each line to a JavaBean.
+		System.out.println(bosch_data.count());
 		if(bosch_data.count() == 0 ) return null;
 //		System.out.println("Convert Data: " + Long.toString(bosch_data.count()));
     String [] fieldNames = bosch_data.first().split("\t");// The schema is encoded in a string
